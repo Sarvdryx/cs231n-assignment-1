@@ -1,0 +1,9 @@
+# Dữ liệu tải về bằng cs231n/datasets/get_datasets.sh, không đưa lên GitHub
+cs231n/datasets/cifar-10-batches-py/
+cs231n/datasets/*.tar.gz
+cs231n/datasets/*.npz
+
+# Python / Jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/

@@ -1,0 +1,2 @@
+# Giữ xuống dòng kiểu Linux (LF) trong repo. File .sh có CRLF sẽ lỗi khi chạy bash trên Kaggle/Colab.
+* text=auto eol=lf
