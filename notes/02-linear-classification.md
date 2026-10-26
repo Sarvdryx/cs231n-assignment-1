@@ -47,24 +47,50 @@ Short definitions of the ML concepts the notes rely on. For each: what it is, th
 - **Definition**: choose the parameters that make the observed data most probable: $\hat\theta = \arg\max_\theta \prod_i p(y_i \mid x_i; \theta)$.
 - **Idea**: products of many small probabilities underflow and are awkward to differentiate, so take the log (monotonic, same argmax) and negate it to get a quantity to minimise: the **negative log-likelihood (NLL)** $-\sum_i \log p(y_i \mid x_i; \theta)$.
 - **Used in**: almost every probabilistic model. Cross-entropy loss for classification *is* the NLL.
+- **MLE vs NLL**: MLE is an *estimation principle* (a rule for choosing $\theta$); the NLL is the *loss function* that this principle produces. Saying "we train with MLE" means "we minimise the NLL".
 - **Example**: a coin gives 7 heads in 10 flips. Likelihood $p^7(1-p)^3$; setting the derivative of the log-likelihood to zero gives $\hat p = 0.7$.
 
 ### 0.6 MAP and the probabilistic view of regularisation
 - **Definition**: Maximum A Posteriori adds a prior over the parameters: $\hat\theta = \arg\max_\theta\, p(\text{data} \mid \theta)\, p(\theta)$.
 - **Idea**: taking $-\log$, the prior becomes an extra term in the loss. A **Gaussian prior** on the weights gives the **L2** penalty; a **Laplace prior** gives **L1**.
 - **Used in**: explains why "data loss + $\lambda R(W)$" is a principled objective, not an arbitrary hack.
-- **Example**: a Gaussian prior $p(w) \propto e^{-w^2 / 2\sigma^2}$ gives $-\log p(w) = \frac{w^2}{2\sigma^2} + \text{const}$, i.e. an L2 penalty with $\lambda = \frac{1}{2\sigma^2}$.
+- **Derivation**: the MAP objective to minimise is
+  $$\text{Loss} = -\log p(\text{data} \mid w) - \log p(w)$$
+  The first term is the usual NLL (data loss); the second term, $-\log p(w)$, acts as an extra penalty.
+  - **Gaussian prior gives L2.** Assume $w \sim \mathcal{N}(0, \sigma^2)$:
+    $$p(w) = \frac{1}{\sqrt{2\pi\sigma^2}}\, e^{-\frac{w^2}{2\sigma^2}} \quad\Rightarrow\quad -\log p(w) = \frac{w^2}{2\sigma^2} + \log\sqrt{2\pi\sigma^2}$$
+    The constant does not depend on $w$, so it does not affect the gradient and can be dropped. The penalty is proportional to $w^2$; summed over all weights, this is exactly L2 (ridge) regularisation with $\lambda = \frac{1}{2\sigma^2}$.
+  - **Laplace prior gives L1.** Assume $w \sim \text{Laplace}(0, b)$:
+    $$p(w) = \frac{1}{2b}\, e^{-\frac{|w|}{b}} \quad\Rightarrow\quad -\log p(w) = \frac{|w|}{b} + \log(2b)$$
+    Dropping the constant, the penalty is proportional to $|w|$; summed over all weights, this is L1 (lasso) regularisation with $\lambda = \frac{1}{b}$.
+  - A narrower prior (smaller $\sigma$ or $b$) means a stronger belief that weights are near 0, i.e. a larger $\lambda$.
+  - The Laplace density has a sharp peak at 0, which is the probabilistic reason L1 drives many weights to exactly 0.
 
 ### 0.7 Logistic regression
 - **Definition**: a linear *binary* classifier that outputs a probability: $p(y = 1 \mid x) = \sigma(w \cdot x + b)$, where $\sigma(z) = \frac{1}{1 + e^{-z}}$ is the sigmoid.
 - **Idea**: a linear score can be any real number; the sigmoid squashes it into $(0, 1)$ so it can be read as a probability. Trained by MLE, which gives the **binary cross-entropy** loss $-[y\log p + (1-y)\log(1-p)]$.
+- **Deriving BCE from MLE**: the model computes $z = w \cdot x + b$ and $p = \sigma(z) = P(y = 1 \mid x)$. Since $y \in \{0, 1\}$, the probability of the observed label can be written in one expression:
+  $$P(Y = y \mid x) = p^{y}(1 - p)^{1 - y}$$
+  (if $y = 1$ it reduces to $p$; if $y = 0$ it reduces to $1 - p$). Taking $-\log$ turns the powers into products and the product into a sum:
+  $$-\log\left(p^{y}(1 - p)^{1 - y}\right) = -\left[y\log p + (1 - y)\log(1 - p)\right]$$
+  Summing (or averaging) this over all training examples gives exactly the binary cross-entropy loss. So logistic regression + MLE = BCE.
 - **Used in**: baselines for binary tasks (spam / not spam, defect / OK), the last layer of binary neural classifiers.
 - **Relation to Softmax**: the Softmax classifier is the multi-class generalisation (also called multinomial logistic regression). With 2 classes, softmax reduces exactly to a sigmoid of the score difference.
 - **Example**: $w \cdot x + b = 2$ gives $p = \sigma(2) \approx 0.88$. If the true label is 1, the loss is $-\log 0.88 \approx 0.13$; if it is 0, the loss is $-\log 0.12 \approx 2.13$.
 
 ### 0.8 Cross-entropy and KL divergence
 - **Definition**: for a true distribution $p$ and a predicted distribution $q$: $H(p, q) = -\sum_x p(x) \log q(x)$. **KL divergence** $D_{KL}(p \| q) = \sum_x p(x) \log \frac{p(x)}{q(x)} \ge 0$ measures how far $q$ is from $p$. They are related by $H(p, q) = H(p) + D_{KL}(p \| q)$.
+- **Name**: KL stands for Kullback–Leibler (Solomon Kullback and Richard Leibler). KL measures the information lost when $q$ is used to approximate $p$. It is **not a true distance**: it is not symmetric, $D_{KL}(p \| q) \ne D_{KL}(q \| p)$ in general.
+- **Proof of the relation**: with the entropy of the true distribution $H(p) = -\sum_x p(x)\log p(x)$ and
+  $$D_{KL}(p \| q) = \sum_x p(x)\log\frac{p(x)}{q(x)} = \sum_x p(x)\log p(x) - \sum_x p(x)\log q(x)$$
+  adding the two gives
+  $$H(p) + D_{KL}(p \| q) = -\sum_x p(x)\log q(x) = H(p, q)$$
 - **Idea**: in classification $p$ is one-hot (all mass on the correct class), so $H(p) = 0$ and minimising cross-entropy is the same as minimising KL, i.e. making the predicted distribution match the true one. Cross-entropy then collapses to $-\log q(\text{correct class})$.
+- **Why it collapses**: take 3 classes (dog, cat, bird) and a cat image, so $p = [0, 1, 0]$. The label is certain, so
+  $$H(p) = -(0\log 0 + 1\log 1 + 0\log 0) = 0$$
+  (using the convention $0 \log 0 = 0$, the limit of $t\log t$ as $t \to 0$). Plugging $p$ into cross-entropy:
+  $$-\sum_x p(x)\log q(x) = -(0\cdot\log q_1 + 1\cdot\log q_2 + 0\cdot\log q_3) = -\log q_2$$
+  Every term multiplied by 0 vanishes; only the negative log-probability of the correct class remains.
 - **Used in**: the standard classification loss in deep learning.
 - **Example**: true class is 2 of 3, predicted $q = [0.2, 0.7, 0.1]$. Loss $= -\log 0.7 \approx 0.36$. If $q = [0.1, 0.1, 0.8]$, loss $= -\log 0.1 \approx 2.30$.
 
@@ -89,7 +115,11 @@ $$f(x_i; W, b) = W x_i + b$$
 
 ### Check yourself (1)
 - **Q1.1** For CIFAR-10, what are the shapes of $W$, $x_i$, $b$ and $f$? How many parameters in total?
+  
+Answer: W is (10x3072), x_i is (3072x1), b is (10x1), f is (10, 1). There are 3073*10 = 30730 parameters ✅
 - **Q1.2** Row $k$ of $W$ is involved in computing which score?
+
+Answer: Row k of W is used to calculate the score with respect to the label it represents ✅ (refined in Corrections)
 
 ---
 
@@ -215,3 +245,8 @@ $$L_i = -\log\left(\frac{e^{f_{y_i}}}{\sum_j e^{f_j}}\right) = -f_{y_i} + \log\s
 Misunderstandings found while answering the questions above, with the corrected understanding.
 
 <!-- Format: **Qx.y**: what I thought → what is actually correct, and why. -->
+
+- **Q1.1** ✅ Correct: $W$ is $10 \times 3072$, $x_i$ is $3072 \times 1$, $b$ is $10 \times 1$, $f$ is $10 \times 1$, total $10 \times 3073 = 30{,}730$ parameters. Small precision: in NumPy $b$ is often stored with shape `(10,)` and broadcast; and the assignment uses the transposed layout ($X$: $N \times D$, $W$: $D \times K$), so there `W` is $3073 \times 10$ after the bias trick. Same parameter count either way.
+- **Q1.2** ✅ Correct idea, sharper wording: row $k$ computes **only** the score of class $k$, $s_k = W_k \cdot x + b_k$, and has no effect on any other score. This is why each row can be viewed as an independent classifier (and later, as the template for class $k$).
+- **0.5 heading, "MLE is actually a loss function"** → not quite. MLE is an *estimation principle* ("pick the parameters that make the data most probable"). The **negative log-likelihood** is the loss function that this principle gives. Cross-entropy is the NLL for classification. Keep the three apart: MLE (principle) → NLL (loss) → cross-entropy / BCE (its concrete form for classification).
+- **0.8, "KL measures the distance between $q$ and $p$"** → KL is a *divergence*, not a distance: it is asymmetric and does not satisfy the triangle inequality. Read $D_{KL}(p \| q)$ as "how much information is lost when using $q$ in place of $p$".
