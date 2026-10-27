@@ -33,16 +33,26 @@ def softmax_loss_naive(W, X, y, reg):
         scores = X[i].dot(W)
 
         # compute the probabilities in numerically stable way
-        scores -= np.max(scores)
+        scores -= np.max(scores) # ngan chan loi tran so vi ham mu tang truong cuc ky nhanh
         p = np.exp(scores)
-        p /= p.sum()  # normalize
-        logp = np.log(p)
+        p /= p.sum()  # normalize, no la cai cuc xac suat cua softmax
+        logp = np.log(p) # cai nay la 1 day cac L_i
 
         loss -= logp[y[i]]  # negative log probability is the loss
+        # phat dua tren ground truth
 
+       # tuc la o moi vong lap, se boc ra mot anh roi lay tich trong so de ra gia tri score, 
+       # sau do bien doi softmax de mot loat cac gia tri predict, cuoi cung lay -logp[y[i]] 
+       # de phat xem coi tren nhan that no du doan sai hay khong roi moi toi uu
+        for k in range(num_classes):
+            coef = p[k] - (1 if k == y[i] else 0)   
+            dW[:, k] += coef * X[i] 
 
     # normalized hinge loss plus regularization
     loss = loss / num_train + reg * np.sum(W * W)
+    dW /= num_train
+    dW += 2*reg*W
+
 
     #############################################################################
     # TODO:                                                                     #
@@ -52,6 +62,7 @@ def softmax_loss_naive(W, X, y, reg):
     # loss is being computed. As a result you may need to modify some of the    #
     # code above to compute the gradient.                                       #
     #############################################################################
+    
 
 
     return loss, dW
